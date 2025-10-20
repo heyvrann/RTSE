@@ -1,0 +1,38 @@
+# ===== Build folders =====
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# ===== Compiled binaries / libraries =====
+*.so
+*.dylib
+*.dll
+*.exe
+*.o
+*.obj
+*.a
+*.lib
+
+# ===== Python-related =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.env/
+.venv/
+
+# ===== macOS / system files =====
+.DS_Store
+.AppleDouble
+.idea/
+.vscode/
+
+# ===== Logs / temporary =====
+*.log
+*.tmp
+
+# ===== Documentation builds =====
+docs/_build/
