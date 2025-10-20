@@ -19,5 +19,3 @@ add_executable(dummy tests/test_dummy.cpp)
 set_target_properties(dummy PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
 )
-
-set_target_properties(rtse PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
