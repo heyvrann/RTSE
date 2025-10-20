@@ -31,3 +31,8 @@ jobs:
 
             - name: Run dummy test
               run: ./build/tests/dummy
+
+            - name: Run pytest
+              run: |
+                pip install pytest
+                pytest -v tests
