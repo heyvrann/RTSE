@@ -16,8 +16,8 @@ struct Box2 {
     Point2 min;
     Point2 max;
     Box2();
-    Box2(Point2 p1, Point2 p2);
-    static Box2 from_point(Point2 p);
+    Box2(const Point2& p1, const Point2& p2);
+    static Box2 from_point(const Point2& p);
     double area() const;
     bool overlap(const Box2& other) const;
     static Box2 merge(const Box2& box1, const Box2& box2);
@@ -41,7 +41,7 @@ public:
     void update(int id, const Box2& new_box);
     std::vector<int> query_range(const Box2& query_box);
     std::deque<std::shared_ptr<Node>> choose_leaf(std::shared_ptr<Node> cur_node, const Box2& box);
-    void insert_to_node(std::deque<std::shared_ptr<Node>> deq, std::shared_ptr<Node> cur_node, const Box2& box, int id);
+    void insert_to_node(std::deque<std::shared_ptr<Node>> deq, const Box2& box, int id);
     
 private:
     std::shared_ptr<Node> root;

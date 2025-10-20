@@ -7,12 +7,12 @@
 
 rtse::Box2::Box2(): is_empty(true) {}
 
-rtse::Box2::Box2(rtse::Point2 p1, rtse::Point2 p2):
+rtse::Box2::Box2(const rtse::Point2& p1, const rtse::Point2& p2):
 min(rtse::Point2(std::min(p1.x, p2.x), std::min(p1.y, p2.y))),
 max(rtse::Point2(std::max(p1.x, p2.x), std::max(p1.y, p2.y))),
 is_empty(false) {}
 
-rtse::Box2 rtse::Box2::from_point(rtse::Point2 p) { return rtse::Box2(p, p); }
+rtse::Box2 rtse::Box2::from_point(const rtse::Point2& p) { return rtse::Box2(p, p); }
 
 double rtse::Box2::area() const {
     if (is_empty) return 0;
@@ -88,7 +88,7 @@ std::deque<std::shared_ptr<rtse::Node>> rtse::RTree::choose_leaf(std::shared_ptr
     return deq;
 }
 
-void rtse::RTree::insert_to_node(std::deque<std::shared_ptr<rtse::Node>>& deq, const rtse::Box2& box, int id) {
+void rtse::RTree::insert_to_node(std::deque<std::shared_ptr<rtse::Node>> deq, const rtse::Box2& box, int id) {
     auto cur_node = deq.front();
     deq.pop_front();
 
