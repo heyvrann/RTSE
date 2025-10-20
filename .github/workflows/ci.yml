@@ -22,8 +22,9 @@ jobs:
                 sudo apt-get install -y cmake
 
             - name: Configure (CMake)
-              run: cmake -B build -DCMAKE_BUILD_TYPE=Release \
-                -Dpybind11_DIR=$(python3 -m pybind11 --cmakedir)
+              run:  |
+                DPYBIND11_DIR=$(python3 -m pybind11 --cmakedir)
+                cmake -B build -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR=$PYBIND11_DIR
 
             - name: Build (CMake)
               run: cmake --build build --parallel
