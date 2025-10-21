@@ -5,6 +5,9 @@
 
 namespace rtse {
 
+constexpr double eps = 1e-9;
+auto eq = [](double a, double b) { return std::abs(a-b) < eps; };
+
 struct Point2 {
     double x, y;
     Point2() = default;
@@ -22,6 +25,8 @@ struct Box2 {
     bool overlap(const Box2& other) const;
     static Box2 merge(const Box2& box1, const Box2& box2);
     double enlarge_area(const Box2& other) const;
+    bool operator==(const Box2& other) const noexcept;
+    bool operator!=(const Box2& other) const noexcept;
 };
 
 struct Node {
@@ -30,7 +35,15 @@ struct Node {
     std::vector<Box2> boxes;
     std::vector<int> ids;
     std::vector<std::shared_ptr<Node>> children;
+    std::pair<const Box2&, int> entry(size_t i) const;
+    size_t size() const;
+    void push_back(const Box2& box, int id);
+    void push_back(const Box2& box, const NodePtr ptr);
 };
+
+using NodePtr = std::shared_ptr<Node>;
+using NodeVec = std::vector<NodePtr>;
+using NodeDeq = std::deque<NodePtr>;
 
 class RTree {
 public:
@@ -40,11 +53,14 @@ public:
     void erase(int id);
     void update(int id, const Box2& new_box);
     std::vector<int> query_range(const Box2& query_box);
-    std::deque<std::shared_ptr<Node>> choose_leaf(std::shared_ptr<Node> cur_node, const Box2& box);
-    void insert_to_node(std::deque<std::shared_ptr<Node>> deq, const Box2& box, int id);
-    
+    NodeDeq choose_leaf(NodePtr cur_node, const Box2& box);
+    void insert_to_node(NodeDeq deq, const Box2& box, int id);
+    std::pair<NodePtr, NodePtr> split(const NodePtr& node);
+    void adjust(NodePtr& node, const NodePtr& removed_node, const std::pair<NodePtr, NodePtr>& split_pair);
+    std::pair<NodePtr, NodePtr> choose_boxes(const NodePtr& node);
+
 private:
-    std::shared_ptr<Node> root;
+    NodePtr root;
     size_t M, m;
 };
 
