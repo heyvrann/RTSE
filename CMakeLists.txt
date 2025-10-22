@@ -25,6 +25,7 @@ include(GoogleTest)
 add_library(rtse_core STATIC
     core/rtree.cpp
 )
+set_target_properties(rtse_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(rtse_core PUBLIC ${PROJECT_SOURCE_DIR}/core)
 
 pybind11_add_module(rtse binding/pybind.cpp)

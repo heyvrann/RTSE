@@ -6,7 +6,7 @@
 namespace rtse {
 
 constexpr double eps = 1e-9;
-auto eq = [](double a, double b) { return std::abs(a-b) < eps; };
+inline auto eq = [](double a, double b) { return std::abs(a-b) < eps; };
 
 struct Point2 {
     double x, y;
