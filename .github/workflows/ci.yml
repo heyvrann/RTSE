@@ -29,8 +29,9 @@ jobs:
             - name: Build (CMake)
               run: cmake --build build --parallel
 
-            - name: Run dummy test
-              run: ./build/tests/dummy
+            - name: Run C++ tests (CTest)
+              run: |
+                ctest --test-dir build --output-on-failure
 
             - name: Run pytest
               run: |

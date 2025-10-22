@@ -78,7 +78,7 @@ rtse::RTree::RTree() {
 }
 
 void rtse::RTree::insert(const Box2& box, int id) {
-    std::cout << "[RTree] 'insert' called." << std::endl;
+    std::cout << "insert " << id << std::endl;
 
     assert(id_to_box.find(id) == id_to_box.end());  // id should be unique
     id_to_box[id] = box;
@@ -96,8 +96,6 @@ void rtse::RTree::update(int id, const rtse::Box2& new_box) {
 }
 
 std::vector<int> rtse::RTree::query_range(const rtse::Box2& query_box) const {
-    std::cout << "[RTree] 'query_range' called." << std::endl;
-
     std::vector<int> satisfied_ids;
     find_queried_boxes(root, query_box, satisfied_ids);
     return satisfied_ids;
@@ -145,10 +143,10 @@ void rtse::RTree::insert_to_node(const rtse::NodeVec& vec, size_t level, const r
         // overflow occurrs
         if (cur_node->boxes.size() > M) {
             auto split_pair = split(cur_node);
-            if (cur_node->is_leaf)
-                adjust(vec, 1, split_pair);
-            else 
+            if (cur_node == root)
                 make_new_root(split_pair);
+            else 
+                adjust(vec, 1, split_pair);
         }
     }
 }
@@ -158,7 +156,7 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& 
     // leaf case: boxes and ids
     if (node->is_leaf) {
         size_t cur_idx = 0, remained = node->size() - 2;
-        while (cur_idx < node->size() && node_A->size() > m - remained && node_B->size() > m - remained) {
+        while (cur_idx < node->size() && node_A->size() + remained > m && node_B->size() + remained > m) {
             if (node->allocated[cur_idx]) { ++cur_idx; continue; }
             int cur_id = node->ids[cur_idx];
             Box2& cur_box = node->boxes[cur_idx];
@@ -185,7 +183,7 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& 
             node->allocated[cur_idx++] = true;
             --remained;
         }   
-        if (node_A->size() == m - remained) {
+        if (node_A->size() + remained == m) {
             while (cur_idx < node->size()) {
                 if (node->allocated[cur_idx]) { ++cur_idx; continue; }
                 node_A->push_back(node->boxes[cur_idx], node->ids[cur_idx]);
@@ -193,7 +191,7 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& 
                 --remained;
             }
         }
-        if (node_B->size() == m - remained) {
+        if (node_B->size() + remained == m) {
             while (cur_idx < node->size()) {
                 if (node->allocated[cur_idx]) { ++cur_idx; continue; }
                 node_B->push_back(node->boxes[cur_idx], node->ids[cur_idx]);
@@ -208,7 +206,7 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& 
     // non-leaf case: boxes and children
     else {
         size_t cur_idx = 0, remained = node->size() - 2;
-        while (cur_idx < node->size() && node_A->size() > m - remained && node_B->size() > m - remained) {
+        while (cur_idx < node->size() && node_A->size() + remained > m && node_B->size() + remained > m) {
             if (node->allocated[cur_idx]) { ++cur_idx; continue; }
             auto cur_ptr = node->children[cur_idx];
             double enlarged_A = node_A->mbr.enlarge_area(node->boxes[cur_idx])
@@ -235,7 +233,7 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& 
             node->allocated[cur_idx++] = true;
             --remained;
         }   
-        if (node_A->size() == m - remained) {
+        if (node_A->size() + remained == m) {
             while (cur_idx < node->size()) {
                 if (node->allocated[cur_idx]) { ++cur_idx; continue; }
                 node_A->push_back(node->children[cur_idx]);
@@ -243,7 +241,7 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& 
                 --remained;
             }
         }
-        if (node_B->size() == m - remained) {
+        if (node_B->size() + remained == m) {
             while (cur_idx < node->size()) {
                 if (node->allocated[cur_idx]) { ++cur_idx; continue; }
                 node_B->push_back(node->children[cur_idx]);

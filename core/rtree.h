@@ -39,7 +39,7 @@ struct Node {
     std::pair<const Box2&, int> entry(size_t i) const;
     size_t size() const;
     void push_back(const Box2& box, int id);
-    void push_back(const NodePtr ptr);
+    void push_back(const std::shared_ptr<Node> ptr);
 };
 
 using NodePtr = std::shared_ptr<Node>;
