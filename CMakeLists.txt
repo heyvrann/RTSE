@@ -34,6 +34,11 @@ target_include_directories(rtse PRIVATE ${pybind11_INCLUDE_DIRS})
 set_target_properties(rtse PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
+add_custom_command(TARGET rtse POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:rtse>
+            ${CMAKE_BINARY_DIR}/$<TARGET_FILE_NAME:rtse>
+)
 
 add_executable(dummy tests/test_dummy.cpp)
 set_target_properties(dummy PROPERTIES
