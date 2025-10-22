@@ -35,10 +35,11 @@ struct Node {
     std::vector<Box2> boxes;
     std::vector<int> ids;
     std::vector<std::shared_ptr<Node>> children;
+    std::vector<bool> allocated;
     std::pair<const Box2&, int> entry(size_t i) const;
     size_t size() const;
     void push_back(const Box2& box, int id);
-    void push_back(const Box2& box, const NodePtr ptr);
+    void push_back(const NodePtr ptr);
 };
 
 using NodePtr = std::shared_ptr<Node>;
@@ -52,12 +53,13 @@ public:
 
     void erase(int id);
     void update(int id, const Box2& new_box);
-    std::vector<int> query_range(const Box2& query_box);
-    NodeDeq choose_leaf(NodePtr cur_node, const Box2& box);
-    void insert_to_node(NodeDeq deq, const Box2& box, int id);
-    std::pair<NodePtr, NodePtr> split(const NodePtr& node);
-    void adjust(NodePtr& node, const NodePtr& removed_node, const std::pair<NodePtr, NodePtr>& split_pair);
-    std::pair<NodePtr, NodePtr> choose_boxes(const NodePtr& node);
+    std::vector<int> query_range(const Box2& query_box) const;
+    NodeVec choose_leaf(NodePtr cur_node, const Box2& box) const;
+    void insert_to_node(const NodeVec& vec, size_t level, const Box2& box, int id);
+    std::pair<NodePtr, NodePtr> split(const NodePtr& node) const;
+    void adjust(const NodeVec& vec, size_t level, const std::pair<NodePtr, NodePtr>& split_pair);
+    std::pair<NodePtr, NodePtr> choose_boxes(const NodePtr& node) const;
+    void find_queried_boxes(const NodePtr& node, const Box2& target, std::vector<int>& ids) const;
 
 private:
     NodePtr root;

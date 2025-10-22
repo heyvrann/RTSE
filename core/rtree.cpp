@@ -95,12 +95,15 @@ void rtse::RTree::update(int id, const rtse::Box2& new_box) {
     std::cout << "[RTree] 'update' called." << std::endl;
 }
 
-std::vector<int> rtse::RTree::query_range(const rtse::Box2& query_box) {
+std::vector<int> rtse::RTree::query_range(const rtse::Box2& query_box) const {
     std::cout << "[RTree] 'query_range' called." << std::endl;
-    return root->ids;
+
+    std::vector<int> satisfied_ids;
+    find_queried_boxes(root, query_box, satisfied_ids);
+    return satisfied_ids;
 }
 
-rtse::NodeVec rtse::RTree::choose_leaf(rtse::NodePtr cur_node, const rtse::Box2& box) {
+rtse::NodeVec rtse::RTree::choose_leaf(rtse::NodePtr cur_node, const rtse::Box2& box) const {
     if (cur_node->is_leaf) return NodeVec(1, cur_node); // base case: leaf node
     assert(!cur_node->children.empty());    // empty node should not exist
 
@@ -147,7 +150,7 @@ void rtse::RTree::insert_to_node(const rtse::NodeVec& vec, size_t level, const r
     }
 }
 
-std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& node) {
+std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& node) const {
     auto [node_A, node_B] = choose_boxes(node);
     // leaf case: boxes and ids
     if (node->is_leaf) {
@@ -263,8 +266,8 @@ void rtse::RTree::adjust(const rtse::NodeVec& vec, size_t level, const std::pair
     auto it_box = find(node->boxes.begin(), node->boxes.end(), vec[level-1]->mbr);
     if (it_box != node->boxes.end()) node->boxes.erase(it_box);
 
-    node->children.push_back(new_nodes.first);
-    node->children.push_back(new_nodes.second);
+    node->push_back(new_nodes.first);
+    node->push_back(new_nodes.second);
 
     if (node->size() > M) {
         auto split_pair = split(node);
@@ -281,7 +284,7 @@ void rtse::RTree::adjust(const rtse::NodeVec& vec, size_t level, const std::pair
     }
 }
 
-std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::NodePtr& node) {
+std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::NodePtr& node) const {
     double overall_low, highest_low, lowest_high, overall_high;
     double separation_x, separation_y;
     double denom;
@@ -333,6 +336,9 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::No
     if (eq(separation_x, separation_y) && eq(separation_x, 0)) { idxA = 0; idxB = 1; }
     else if (separation_x > separation_y) { idxA = idxA_x; idxB = idxB_x; }
     else { idxA = idxA_y; idxB = idxB_y; }
+
+    assert(idxA != idxB);   // ensure we reference two nodes
+
     node->allocated = std::vector<bool>(node->size(), false);
     node->allocated[idxB] = node->allocated[idxA] = true; 
     auto ptrA = std::make_shared<Node>(), ptrB = std::make_shared<Node>();
@@ -346,6 +352,22 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::No
         ptrB->push_back(node->children[idxB]);
     }
     return {ptrA, ptrB};
+}
+
+void rtse::RTree::find_queried_boxes(const rtse::NodePtr& node, const rtse::Box2& target, std::vector<int>& ids) const {
+    if (node->is_leaf) {
+        for (size_t i = 0 ; i < node->size() ; i++) {
+            if (target.overlap(node->boxes[i]))
+                ids.push_back(node->ids[i]);
+        }
+    }
+    else {
+        for (size_t i = 0 ; i < node->size() ; i++) {
+            if (target.overlap(node->boxes[i])){
+                find_queried_boxes(node->children[i], target, ids);
+            }
+        }
+    }
 }
 
 void hello_core() {
