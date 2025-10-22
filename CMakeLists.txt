@@ -31,7 +31,7 @@ target_include_directories(rtse_core PUBLIC ${PROJECT_SOURCE_DIR}/core)
 pybind11_add_module(rtse binding/pybind.cpp)
 target_link_libraries(rtse PRIVATE rtse_core)
 target_include_directories(rtse PRIVATE ${pybind11_INCLUDE_DIRS})
-set_target_properties(rtse EXPORT_PROPERTIES
+set_target_properties(rtse PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
