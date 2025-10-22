@@ -38,3 +38,8 @@ jobs:
                 pip install pytest
                 export PYTHONPATH=$PYTHONPATH:$(pwd)/build
                 pytest -v tests
+              
+            - name: Debug build artifacts
+              run: |
+                echo "=== list build outputs ==="
+                find build -name "*.so" || true
