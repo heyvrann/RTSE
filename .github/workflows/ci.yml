@@ -32,14 +32,14 @@ jobs:
             - name: Run C++ tests (CTest)
               run: |
                 ctest --test-dir build --output-on-failure
-
+            
+            - name: Debug build artifacts
+              run: |
+                echo "=== list build outputs ==="
+                find build -name "*.so" || true    
+              
             - name: Run pytest
               run: |
                 pip install pytest
                 export PYTHONPATH=$PYTHONPATH:$(pwd)/build
                 pytest -v tests
-              
-            - name: Debug build artifacts
-              run: |
-                echo "=== list build outputs ==="
-                find build -name "*.so" || true
