@@ -63,10 +63,10 @@ void rtse::Node::push_back(const rtse::Box2& box, int id) {
     mbr = Box2::merge(mbr, box);
 }
 
-void rtse::Node::push_back(const rtse::Box2& box, const rtse::NodePtr ptr) {
-    boxes.push_back(box);
+void rtse::Node::push_back(const rtse::NodePtr ptr) {
+    boxes.push_back(ptr->mbr);
     children.push_back(ptr);
-    mbr = Box2::merge(mbr, box);
+    mbr = Box2::merge(mbr, ptr->mbr);
 }
 
 rtse::RTree::RTree() {
@@ -83,8 +83,8 @@ void rtse::RTree::insert(const Box2& box, int id) {
     assert(id_to_box.find(id) == id_to_box.end());  // id should be unique
     id_to_box[id] = box;
 
-    auto deq = choose_leaf(root, box);
-    insert_to_node(deq, box, id);
+    auto vec = choose_leaf(root, box);
+    insert_to_node(vec, vec.size()-1, box, id);
 }
 
 void rtse::RTree::erase(int id) {
@@ -100,8 +100,8 @@ std::vector<int> rtse::RTree::query_range(const rtse::Box2& query_box) {
     return root->ids;
 }
 
-rtse::NodeDeq rtse::RTree::choose_leaf(rtse::NodePtr cur_node, const rtse::Box2& box) {
-    if (cur_node->is_leaf) return NodeDeq(1, cur_node); // base case: leaf node
+rtse::NodeVec rtse::RTree::choose_leaf(rtse::NodePtr cur_node, const rtse::Box2& box) {
+    if (cur_node->is_leaf) return NodeVec(1, cur_node); // base case: leaf node
     assert(!cur_node->children.empty());    // empty node should not exist
 
     // recursive case: non-leaf node
@@ -113,36 +113,28 @@ rtse::NodeDeq rtse::RTree::choose_leaf(rtse::NodePtr cur_node, const rtse::Box2&
             min_enlargement = enlarge_area;
             min_ptr = child;
         }
-        else if (enlarge_area == min_enlargement && child->mbr.area() < min_ptr->mbr.area()) {
+        else if (eq(enlarge_area, min_enlargement) && child->mbr.area() < min_ptr->mbr.area()) {
             min_enlargement = enlarge_area;
             min_ptr = child;
         }
     }
-    auto deq = choose_leaf(min_ptr, box);
-    deq.push_front(cur_node);
-    return deq;
+    // returned vector will be: [leaf, parent, grandparent, ... ]
+    auto vec = choose_leaf(min_ptr, box);
+    vec.push_back(cur_node);
+    return vec;
 }
 
-void rtse::RTree::insert_to_node(rtse::NodeDeq deq, const rtse::Box2& box, int id) {
-    // keep the parent node to handle overflow
-    NodePtr parent_node = nullptr;
-    if (deq.front() != root) parent_node = deq.front();
-    deq.pop_front();
-    auto cur_node = deq.front();
-
+void rtse::RTree::insert_to_node(const rtse::NodeVec& vec, size_t level, const rtse::Box2& box, int id) {
+    auto cur_node = vec[level];
     cur_node->mbr = Box2::merge(cur_node->mbr, box);
     if (!cur_node->is_leaf) {
         // enlarge the mbr of child node
-        auto tmp = deq.front();
-        deq.pop_front();
-        auto child = deq.front();
+        auto child = vec[level-1];
         for (size_t i = 0 ; i < cur_node->children.size() ; i++) {
             if (cur_node->children[i] == child)
                 cur_node->boxes[i] = Box2::merge(cur_node->boxes[i], box);
         }
-        deq.push_front(tmp);
-        
-        insert_to_node(deq, box, id);   // recursive insertion
+        insert_to_node(vec, level-1, box, id);   // recursive insertion
     }
     else {
         cur_node->boxes.push_back(box);
@@ -150,7 +142,7 @@ void rtse::RTree::insert_to_node(rtse::NodeDeq deq, const rtse::Box2& box, int i
         // overflow occurrs
         if (cur_node->boxes.size() > M) {
             auto split_pair = split(cur_node);
-            adjust(parent_node, cur_node, split_pair);
+            adjust(vec, 1, split_pair);
         }
     }
 }
@@ -159,11 +151,9 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& 
     auto [node_A, node_B] = choose_boxes(node);
     // leaf case: boxes and ids
     if (node->is_leaf) {
-        int id_A = node_A->ids[0], id_B = node_B->ids[0];
-
         size_t cur_idx = 0, remained = node->size() - 2;
         while (cur_idx < node->size() && node_A->size() > m - remained && node_B->size() > m - remained) {
-            if (node->ids[cur_idx] == id_A || node->ids[cur_idx] == id_B) { ++cur_idx; continue; }
+            if (node->allocated[cur_idx]) { ++cur_idx; continue; }
             int cur_id = node->ids[cur_idx];
             Box2& cur_box = node->boxes[cur_idx];
             double enlarged_A = node_A->mbr.enlarge_area(cur_box), enlarged_B = node_B->mbr.enlarge_area(cur_box);
@@ -186,86 +176,117 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& 
             else 
                 node_A->push_back(cur_box, cur_id);
             
-            ++cur_idx;
+            node->allocated[cur_idx++] = true;
             --remained;
         }   
         if (node_A->size() == m - remained) {
             while (cur_idx < node->size()) {
-                if (node->ids[cur_idx] == id_A || node->ids[cur_idx] == id_B) { ++cur_idx; continue; }
+                if (node->allocated[cur_idx]) { ++cur_idx; continue; }
                 node_A->push_back(node->boxes[cur_idx], node->ids[cur_idx]);
-                ++cur_idx;
+                node->allocated[cur_idx++] = true;
+                --remained;
             }
         }
         if (node_B->size() == m - remained) {
             while (cur_idx < node->size()) {
-                if (node->ids[cur_idx] == id_A || node->ids[cur_idx] == id_B) { ++cur_idx; continue; }
+                if (node->allocated[cur_idx]) { ++cur_idx; continue; }
                 node_B->push_back(node->boxes[cur_idx], node->ids[cur_idx]);
-                ++cur_idx;
+                node->allocated[cur_idx++] = true;
+                --remained;
             }
         }
+        // check if all geometries allocated
+        assert(remained == 0);  
+        assert(node->allocated == std::vector<bool>(node->size(), true));
     }
     // non-leaf case: boxes and children
     else {
-        auto ptr_A = node_A->children[0], ptr_B = node_B->children[0];
-
         size_t cur_idx = 0, remained = node->size() - 2;
         while (cur_idx < node->size() && node_A->size() > m - remained && node_B->size() > m - remained) {
-            if (node->children[cur_idx] == ptr_A || node->children[cur_idx] == ptr_B) { ++cur_idx; continue; }
+            if (node->allocated[cur_idx]) { ++cur_idx; continue; }
             auto cur_ptr = node->children[cur_idx];
-            Box2& cur_box = node->boxes[cur_idx];
-            double enlarged_A = node_A->mbr.enlarge_area(cur_box), enlarged_B = node_B->mbr.enlarge_area(cur_box);
+            double enlarged_A = node_A->mbr.enlarge_area(node->boxes[cur_idx])
+                 , enlarged_B = node_B->mbr.enlarge_area(node->boxes[cur_idx]);
             // choose smaller enlarged area
             if (enlarged_A < enlarged_B) 
-                node_A->push_back(cur_box, cur_ptr);
+                node_A->push_back(cur_ptr);
             else if (enlarged_A > enlarged_B) 
-                node_B->push_back(cur_box, cur_ptr);
+                node_B->push_back(cur_ptr);
             // if tie, chooese smaller mbr 
             else if (node_A->mbr.area() < node_B->mbr.area())
-                node_A->push_back(cur_box, cur_ptr);
+                node_A->push_back(cur_ptr);
             else if (node_A->mbr.area() > node_B->mbr.area())
-                node_B->push_back(cur_box, cur_ptr);
+                node_B->push_back(cur_ptr);
             // if tie again, choose smaller node
             else if (node_A->size() < node_B->size())
-                node_A->push_back(cur_box, cur_ptr);
+                node_A->push_back(cur_ptr);
             else if (node_A->size() > node_B->size())
-                node_B->push_back(cur_box, cur_ptr);
+                node_B->push_back(cur_ptr);
             // if still tie, add to node_A 
             else 
-                node_A->push_back(cur_box, cur_ptr);
+                node_A->push_back(cur_ptr);
             
-            ++cur_idx;
+            node->allocated[cur_idx++] = true;
             --remained;
         }   
         if (node_A->size() == m - remained) {
             while (cur_idx < node->size()) {
-                if (node->children[cur_idx] == ptr_A || node->children[cur_idx] == ptr_B) { ++cur_idx; continue; }
-                node_A->push_back(node->boxes[cur_idx], node->children[cur_idx]);
-                ++cur_idx;
+                if (node->allocated[cur_idx]) { ++cur_idx; continue; }
+                node_A->push_back(node->children[cur_idx]);
+                node->allocated[cur_idx++] = true;
+                --remained;
             }
         }
         if (node_B->size() == m - remained) {
             while (cur_idx < node->size()) {
-                if (node->children[cur_idx] == ptr_A || node->children[cur_idx] == ptr_B) { ++cur_idx; continue; }
-                node_B->push_back(node->boxes[cur_idx], node->children[cur_idx]);
-                ++cur_idx;
+                if (node->allocated[cur_idx]) { ++cur_idx; continue; }
+                node_B->push_back(node->children[cur_idx]);
+                node->allocated[cur_idx++] = true;
+                --remained;
             }
         }
+        // check if all geometries allocated
+        assert(remained == 0);
+        assert(node->allocated == std::vector<bool>(node->size(), true));
     }
     return {node_A, node_B};
 }
 
-void rtse::RTree::adjust(rtse::NodePtr& node, const rtse::NodePtr& removed_node, const std::pair<rtse::NodePtr, rtse::NodePtr>& split_pair) {
-    auto it = find(node->children.begin(), node->children.end(), removed_node);
-    if (it != node->children.end()) node->children.erase(it);
+void rtse::RTree::adjust(const rtse::NodeVec& vec, size_t level, const std::pair<rtse::NodePtr, rtse::NodePtr>& new_nodes) {
+    assert(new_nodes.first != new_nodes.second);    // two nodes should not be the same
+    assert(level < vec.size());
 
+    auto node = vec[level];    
+    // remove the overflow node from its parent's childrean vector
+    auto it_child = find(node->children.begin(), node->children.end(), vec[level-1]);
+    if (it_child != node->children.end()) node->children.erase(it_child);
+    auto it_box = find(node->boxes.begin(), node->boxes.end(), vec[level-1]->mbr);
+    if (it_box != node->boxes.end()) node->boxes.erase(it_box);
 
+    node->children.push_back(new_nodes.first);
+    node->children.push_back(new_nodes.second);
+
+    if (node->size() > M) {
+        auto split_pair = split(node);
+        if (level < vec.size() - 1) {
+            adjust(vec, level+1, split_pair);
+        }
+        else {
+            auto new_root = std::make_shared<Node>();
+            new_root->is_leaf = false;
+            new_root->push_back(split_pair.first);
+            new_root->push_back(split_pair.second);
+            root = new_root;
+        }
+    }
 }
 
 std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::NodePtr& node) {
     double overall_low, highest_low, lowest_high, overall_high;
     double separation_x, separation_y;
     double denom;
-    size_t idxA_x, idxB_x, idxA_y, idxB_y;
+    size_t idxA_x = 0, idxB_x = 1, idxA_y = 0, idxB_y = 1;
+    assert(node->size() >= 2);
 
     // calculate normalized separation of x-axis
     overall_low = lowest_high = std::numeric_limits<double>::infinity();
@@ -284,7 +305,7 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::No
             overall_high = node->boxes[i].max.x;
     }
     denom = overall_high - overall_low;
-    if (denom == 0) separation_x = 0;
+    if (eq(denom, 0.0)) separation_x = 0;
     else separation_x = std::max(0.0, (highest_low - lowest_high) / denom);
 
     // calculate normalized seperation of y-axis
@@ -304,24 +325,25 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::No
             overall_high = node->boxes[i].max.y;
     }
     denom = overall_high - overall_low;
-    if (denom == 0) separation_y = 0;
+    if (eq(denom, 0.0)) separation_y = 0;
     else separation_y = std::max(0.0, (highest_low - lowest_high) / denom);
 
     // choose the axis with larger separation
     size_t idxA, idxB;
-    if (separation_x > separation_y) { idxA = idxA_x; idxB = idxB_x; }
+    if (eq(separation_x, separation_y) && eq(separation_x, 0)) { idxA = 0; idxB = 1; }
+    else if (separation_x > separation_y) { idxA = idxA_x; idxB = idxB_x; }
     else { idxA = idxA_y; idxB = idxB_y; }
+    node->allocated = std::vector<bool>(node->size(), false);
+    node->allocated[idxB] = node->allocated[idxA] = true; 
     auto ptrA = std::make_shared<Node>(), ptrB = std::make_shared<Node>();
     ptrB->is_leaf = ptrA->is_leaf = node->is_leaf;
-    ptrA->boxes.push_back(node->boxes[idxA]); ptrA->mbr = node->boxes[idxA];
-    ptrB->boxes.push_back(node->boxes[idxB]); ptrB->mbr = node->boxes[idxB];
     if (node->is_leaf) { 
-        ptrA->ids.push_back(node->ids[idxA]); 
-        ptrB->ids.push_back(node->ids[idxB]); 
+        ptrA->push_back(node->boxes[idxA], node->ids[idxA]);
+        ptrB->push_back(node->boxes[idxB], node->ids[idxB]);
     }
     else { 
-        ptrA->children.push_back(node->children[idxA]);
-        ptrB->children.push_back(node->children[idxB]);
+        ptrA->push_back(node->children[idxA]);
+        ptrB->push_back(node->children[idxB]);
     }
     return {ptrA, ptrB};
 }
