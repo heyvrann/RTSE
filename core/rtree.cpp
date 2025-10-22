@@ -145,7 +145,10 @@ void rtse::RTree::insert_to_node(const rtse::NodeVec& vec, size_t level, const r
         // overflow occurrs
         if (cur_node->boxes.size() > M) {
             auto split_pair = split(cur_node);
-            adjust(vec, 1, split_pair);
+            if (cur_node->is_leaf)
+                adjust(vec, 1, split_pair);
+            else 
+                make_new_root(split_pair);
         }
     }
 }
@@ -275,11 +278,7 @@ void rtse::RTree::adjust(const rtse::NodeVec& vec, size_t level, const std::pair
             adjust(vec, level+1, split_pair);
         }
         else {
-            auto new_root = std::make_shared<Node>();
-            new_root->is_leaf = false;
-            new_root->push_back(split_pair.first);
-            new_root->push_back(split_pair.second);
-            root = new_root;
+            make_new_root(split_pair);
         }
     }
 }
@@ -368,6 +367,14 @@ void rtse::RTree::find_queried_boxes(const rtse::NodePtr& node, const rtse::Box2
             }
         }
     }
+}
+
+void rtse::RTree::make_new_root(const std::pair<rtse::NodePtr, rtse::NodePtr>& split_pair) {
+    auto new_root = std::make_shared<Node>();
+    new_root->is_leaf = false;
+    new_root->push_back(split_pair.first);
+    new_root->push_back(split_pair.second);
+    root = new_root;
 }
 
 void hello_core() {

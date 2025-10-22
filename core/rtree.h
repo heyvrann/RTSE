@@ -60,6 +60,7 @@ public:
     void adjust(const NodeVec& vec, size_t level, const std::pair<NodePtr, NodePtr>& split_pair);
     std::pair<NodePtr, NodePtr> choose_boxes(const NodePtr& node) const;
     void find_queried_boxes(const NodePtr& node, const Box2& target, std::vector<int>& ids) const;
+    void make_new_root(const std::pair<NodePtr, NodePtr>& split_pair);
 
 private:
     NodePtr root;
