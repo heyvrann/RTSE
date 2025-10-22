@@ -13,7 +13,7 @@ jobs:
             - name: Set up Python
               uses: actions/setup-python@v5
               with:
-                python-version: "3.10"
+                python-version: "3.12"
             
             - name: Install dependencies
               run: |
@@ -24,15 +24,17 @@ jobs:
             - name: Configure (CMake)
               run:  |
                 PYBIND11_DIR=$(python3 -m pybind11 --cmakedir)
-                cmake -B build -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR=$PYBIND11_DIR
+                cmake -Wno-dev -B build -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR=$PYBIND11_DIR
 
             - name: Build (CMake)
               run: cmake --build build --parallel
 
-            - name: Run dummy test
-              run: ./build/tests/dummy
-
+            - name: Run C++ tests (CTest)
+              run: |
+                ctest --test-dir build --output-on-failure  
+              
             - name: Run pytest
               run: |
                 pip install pytest
+                export PYTHONPATH=$PYTHONPATH:$(pwd)/build
                 pytest -v tests

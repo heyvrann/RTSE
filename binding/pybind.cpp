@@ -1,6 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include "../core/rtree.cpp"
+#include "../core/rtree.h"
 
 namespace py = pybind11;
 
