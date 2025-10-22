@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <memory>
-#include <deque>
+#include <cmath>
 
 namespace rtse {
 
@@ -44,7 +44,6 @@ struct Node {
 
 using NodePtr = std::shared_ptr<Node>;
 using NodeVec = std::vector<NodePtr>;
-using NodeDeq = std::deque<NodePtr>;
 
 class RTree {
 public:
