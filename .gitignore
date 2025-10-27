@@ -4,6 +4,8 @@ CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
+Testing/
+CTestTestfile.cmake
 
 # ===== Compiled binaries / libraries =====
 *.so
