@@ -4,6 +4,7 @@ project(RTSE LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(PYBIND11_FINDPYTHON ON)
 find_package(pybind11 REQUIRED)
 
 enable_testing()
@@ -11,6 +12,7 @@ include(FetchContent)
 FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 set(INSTALL_GTEST OFF)
 FetchContent_MakeAvailable(googletest)

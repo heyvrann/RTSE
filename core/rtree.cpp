@@ -5,36 +5,43 @@
 #include <cassert>
 #include <limits>
 #include <algorithm>
-#include <unordered_map>
 
-std::unordered_map<int, rtse::Box2> id_to_box;
+double rtse::Point2::x() const { return m_x; }
 
-rtse::Box2::Box2(): is_empty(true) {}
+double rtse::Point2::y() const { return m_y; }
+
+rtse::Box2::Box2(): m_is_empty(true) {}
 
 rtse::Box2::Box2(const rtse::Point2& p1, const rtse::Point2& p2):
-min(Point2(std::min(p1.x, p2.x), std::min(p1.y, p2.y))),
-max(Point2(std::max(p1.x, p2.x), std::max(p1.y, p2.y))),
-is_empty(false) {}
+m_min(Point2(std::min(p1.x(), p2.x()), std::min(p1.y(), p2.y()))),
+m_max(Point2(std::max(p1.x(), p2.x()), std::max(p1.y(), p2.y()))),
+m_is_empty(false) {}
+
+const rtse::Point2& rtse::Box2::min() const { return m_min; }
+
+const rtse::Point2& rtse::Box2::max() const { return m_max; }
+
+bool rtse::Box2::is_empty() const { return m_is_empty; }
 
 rtse::Box2 rtse::Box2::from_point(const rtse::Point2& p) { return Box2(p, p); }
 
 double rtse::Box2::area() const {
-    if (is_empty) return 0;
-    return std::max(0.0, (max.x - min.x) * (max.y - min.y));
+    if (is_empty()) return 0;
+    return std::max(0.0, (max().x() - min().x()) * (max().y() - min().y()));
 }
 
 bool rtse::Box2::overlap(const rtse::Box2& other) const {
-    if (this->is_empty) return false;
-    if (other.is_empty) return false;
-    return (max.x >= other.min.x && min.x <= other.max.x)   // x-axis intersects
-        && (max.y >= other.min.y && min.y <= other.max.y);  // y-axis intersects
+    if (this->is_empty()) return false;
+    if (other.is_empty()) return false;
+    return (max().x() >= other.min().x() && min().x() <= other.max().x())   // x-axis intersects
+        && (max().y() >= other.min().y() && min().y() <= other.max().y());  // y-axis intersects
 }
 
 rtse::Box2 rtse::Box2::merge(const Box2& box1, const Box2& box2) {
-    if (box1.is_empty) return box2;
-    if (box2.is_empty) return box1;
-    return Box2(Point2(std::min(box1.min.x, box2.min.x), std::min(box1.min.y, box2.min.y)),
-                Point2(std::max(box1.max.x, box2.max.x), std::max(box1.max.y, box2.max.y)));
+    if (box1.is_empty()) return box2;
+    if (box2.is_empty()) return box1;
+    return Box2(Point2(std::min(box1.min().x(), box2.min().x()), std::min(box1.min().y(), box2.min().y())),
+                Point2(std::max(box1.max().x(), box2.max().x()), std::max(box1.max().y(), box2.max().y())));
 }
 
 double rtse::Box2::enlarge_area(const Box2& other) const {
@@ -43,8 +50,8 @@ double rtse::Box2::enlarge_area(const Box2& other) const {
 }
 
 bool rtse::Box2::operator==(const Box2& other) const noexcept {
-    return eq(min.x, other.min.x) && eq(max.x, other.max.x)
-        && eq(min.y, other.min.y) && eq(max.y, other.max.y);
+    return eq(min().x(), other.min().x()) && eq(max().x(), other.max().x())
+        && eq(min().y(), other.min().y()) && eq(max().y(), other.max().y());
 }
 
 bool rtse::Box2::operator!=(const Box2& other) const noexcept {
@@ -69,6 +76,12 @@ void rtse::Node::push_back(const rtse::NodePtr ptr) {
     mbr = Box2::merge(mbr, ptr->mbr);
 }
 
+void rtse::Node::update_mbr() {
+    mbr = Box2();
+    for (size_t i = 0 ; i < this->size() ; i++)
+        mbr = Box2::merge(mbr, boxes[i]);
+}
+
 rtse::RTree::RTree() {
     root = std::make_shared<Node>();
     root->is_leaf = true;
@@ -78,7 +91,7 @@ rtse::RTree::RTree() {
 }
 
 void rtse::RTree::insert(const Box2& box, int id) {
-    std::cout << "insert " << id << std::endl;
+    std::cout << "[RTree] insert " << id << "." << std::endl;
 
     assert(id_to_box.find(id) == id_to_box.end());  // id should be unique
     id_to_box[id] = box;
@@ -88,11 +101,31 @@ void rtse::RTree::insert(const Box2& box, int id) {
 }
 
 void rtse::RTree::erase(int id) {
-    std::cout << "[RTree] 'erase' called." << std::endl;
+    std::cout << "[RTree] erase " << id << "."<< std::endl;
+
+    assert(id_to_box.find(id) != id_to_box.end());   // erased id should exist
+
+    auto removed_box = id_to_box[id];
+    NodeVec vec(0);
+    choose_leaf(vec, root, removed_box, id);
+    assert(!vec.empty());   // DFS path should exist
+    remove_node(vec, vec.size()-1, id);
+
+    id_to_box.erase(id);
+
+    if (!root->is_leaf && root->size() == 1)
+        root = root->children[0];
+    if (!root->is_leaf && root->size() == 0)
+        root->is_leaf = true;
 }
 
 void rtse::RTree::update(int id, const rtse::Box2& new_box) {
-    std::cout << "[RTree] 'update' called." << std::endl;
+    std::cout << "[RTree] update " << id << "." << std::endl;
+
+    assert(id_to_box.find(id) != id_to_box.end()); // updated id should exist
+    
+    erase(id);
+    insert(new_box, id);
 }
 
 std::vector<int> rtse::RTree::query_range(const rtse::Box2& query_box) const {
@@ -101,6 +134,7 @@ std::vector<int> rtse::RTree::query_range(const rtse::Box2& query_box) const {
     return satisfied_ids;
 }
 
+// choose the leaf node for insertion 
 rtse::NodeVec rtse::RTree::choose_leaf(rtse::NodePtr cur_node, const rtse::Box2& box) const {
     if (cur_node->is_leaf) return NodeVec(1, cur_node); // base case: leaf node
     assert(!cur_node->children.empty());    // empty node should not exist
@@ -125,6 +159,7 @@ rtse::NodeVec rtse::RTree::choose_leaf(rtse::NodePtr cur_node, const rtse::Box2&
     return vec;
 }
 
+// insertion detail implementation
 void rtse::RTree::insert_to_node(const rtse::NodeVec& vec, size_t level, const rtse::Box2& box, int id) {
     auto cur_node = vec[level];
     cur_node->mbr = Box2::merge(cur_node->mbr, box);
@@ -151,6 +186,7 @@ void rtse::RTree::insert_to_node(const rtse::NodeVec& vec, size_t level, const r
     }
 }
 
+// split overflow leaf node
 std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& node) const {
     auto [node_A, node_B] = choose_boxes(node);
     // leaf case: boxes and ids
@@ -256,6 +292,7 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& 
     return {node_A, node_B};
 }
 
+// remove the overflow node and add the new nodes
 void rtse::RTree::adjust(const rtse::NodeVec& vec, size_t level, const std::pair<rtse::NodePtr, rtse::NodePtr>& new_nodes) {
     assert(new_nodes.first != new_nodes.second);    // two nodes should not be the same
     assert(level < vec.size());
@@ -281,6 +318,7 @@ void rtse::RTree::adjust(const rtse::NodeVec& vec, size_t level, const std::pair
     }
 }
 
+// find two farest nodes to the axis with larger separation
 std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::NodePtr& node) const {
     double overall_low, highest_low, lowest_high, overall_high;
     double separation_x, separation_y;
@@ -292,17 +330,17 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::No
     overall_low = lowest_high = std::numeric_limits<double>::infinity();
     highest_low = overall_high = -std::numeric_limits<double>::infinity();
     for (size_t i = 0 ; i < node->boxes.size() ; i++) {
-        if (node->boxes[i].min.x < overall_low) overall_low = node->boxes[i].min.x;
-        if (node->boxes[i].min.x > highest_low) {
-            highest_low = node->boxes[i].min.x;
+        if (node->boxes[i].min().x() < overall_low) overall_low = node->boxes[i].min().x();
+        if (node->boxes[i].min().x() > highest_low) {
+            highest_low = node->boxes[i].min().x();
             idxA_x = i;
         }
-        if (node->boxes[i].max.x < lowest_high) {
-            lowest_high = node->boxes[i].max.x;
+        if (node->boxes[i].max().x() < lowest_high) {
+            lowest_high = node->boxes[i].max().x();
             idxB_x = i;
         } 
-        if (node->boxes[i].max.x > overall_high)
-            overall_high = node->boxes[i].max.x;
+        if (node->boxes[i].max().x() > overall_high)
+            overall_high = node->boxes[i].max().x();
     }
     denom = overall_high - overall_low;
     if (eq(denom, 0.0)) separation_x = 0;
@@ -312,17 +350,17 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::No
     overall_low = lowest_high = std::numeric_limits<double>::infinity();
     highest_low = overall_high = -std::numeric_limits<double>::infinity();
     for (size_t i = 0 ; i < node->boxes.size() ; i++) {
-        if (node->boxes[i].min.y < overall_low) overall_low = node->boxes[i].min.y;
-        if (node->boxes[i].min.y > highest_low) {
-            highest_low = node->boxes[i].min.y;
+        if (node->boxes[i].min().y() < overall_low) overall_low = node->boxes[i].min().y();
+        if (node->boxes[i].min().y() > highest_low) {
+            highest_low = node->boxes[i].min().y();
             idxA_y = i;
         }
-        if (node->boxes[i].max.y < lowest_high) {
-            lowest_high = node->boxes[i].max.y;
+        if (node->boxes[i].max().y() < lowest_high) {
+            lowest_high = node->boxes[i].max().y();
             idxB_y = i;
         } 
-        if (node->boxes[i].max.y > overall_high)
-            overall_high = node->boxes[i].max.y;
+        if (node->boxes[i].max().y() > overall_high)
+            overall_high = node->boxes[i].max().y();
     }
     denom = overall_high - overall_low;
     if (eq(denom, 0.0)) separation_y = 0;
@@ -351,6 +389,7 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::No
     return {ptrA, ptrB};
 }
 
+// resursively find the overlaped node
 void rtse::RTree::find_queried_boxes(const rtse::NodePtr& node, const rtse::Box2& target, std::vector<int>& ids) const {
     if (node->is_leaf) {
         for (size_t i = 0 ; i < node->size() ; i++) {
@@ -373,6 +412,70 @@ void rtse::RTree::make_new_root(const std::pair<rtse::NodePtr, rtse::NodePtr>& s
     new_root->push_back(split_pair.first);
     new_root->push_back(split_pair.second);
     root = new_root;
+}
+
+// search for leaf node 
+void rtse::RTree::choose_leaf(NodeVec& vec, const NodePtr& node, const Box2& box, int id) const {
+    if (node->is_leaf) {
+        bool found = false;
+        for (size_t i = 0 ; i < node->size() ; i++)
+            if (id == node->ids[i]) 
+                found = true;
+        if (found) vec = NodeVec(1, node);
+    } 
+    else {
+        if (vec.size() > 0) return; // the path is unique
+        for (size_t i = 0 ; i < node->size() ; i++) {
+            if (node->boxes[i].overlap(box)) {
+                size_t origin_size = vec.size();
+                choose_leaf(vec, node->children[i], box, id);
+                if (vec.size() > origin_size) {
+                    vec.push_back(node);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+rtse::Box2 rtse::RTree::remove_node(const NodeVec& vec, size_t level, int id) {
+    auto node = vec[level];
+    if (level == 0) {
+        size_t idx;
+        bool found = false;
+        for (size_t i = 0 ; i < node->size() ; i++) {
+            if (id == node->ids[i]) {
+                idx = i;
+                found = true;
+                break;
+            }
+        }
+        assert(found == true);  // matched id should be found
+        node->ids.erase(node->ids.begin() + idx);
+        node->boxes.erase(node->boxes.begin() + idx);
+    }
+    else {
+        auto child_mbr = remove_node(vec, level-1, id);
+        size_t child_idx;
+        bool found = false;
+        for (size_t i = 0 ; i < node->size() ; i++) {
+            if (vec[level-1] == node->children[i]) {
+                child_idx = i;
+                found = true;
+                break;
+            }
+        }
+        assert(found == true);  // child_idx should be found
+        if (vec[level-1]->boxes.empty()) {
+            node->children.erase(node->children.begin() + child_idx);
+            node->boxes.erase(node->boxes.begin() + child_idx);
+        }
+        else {
+            node->boxes[child_idx] = child_mbr;
+        }
+    }
+    node->update_mbr();
+    return node->mbr;
 }
 
 void hello_core() {
