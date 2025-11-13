@@ -25,6 +25,10 @@ __pycache__/
 *.egg-info/
 .env/
 .venv/
+.hypothesis/
+.pytest_cache/
+.benchmark/
+benchmark/results/
 
 # ===== macOS / system files =====
 .DS_Store

@@ -14,12 +14,14 @@ jobs:
               uses: actions/setup-python@v5
               with:
                 python-version: "3.12"
+                cache: "pip"
+                cache-dependency-path: requirements.txt
             
             - name: Install dependencies
               run: |
-                pip install pybind11
-                sudo apt-get update
-                sudo apt-get install -y cmake
+                python -m pip install -U pip
+                pip install -r requirements.txt
+                sudo apt-get update && sudo apt-get install -y cmake
 
             - name: Configure (CMake)
               run:  |
@@ -35,6 +37,20 @@ jobs:
               
             - name: Run pytest
               run: |
-                pip install pytest
                 export PYTHONPATH=$PYTHONPATH:$(pwd)/build
-                pytest -v tests
+                HYPOTHESIS_PROFILE=ci pytest -v tests
+            
+            - name: Run minimal benchmark (smoke)
+              run: |
+                PYTHONPATH=$PYTHONPATH:$(pwd)/build \
+                pytest --benchmark-only benchmark/test_bench.py -k build_time \
+                       --benchmark-json=benchmark-results.json
+            
+            - name: Upload benchmark artifact
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                name: bench-${{ github.sha }}
+                path: benchmark-results.json
+                if-no-files-found: error
+                retention-days: 30

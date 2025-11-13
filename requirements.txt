@@ -1,0 +1,6 @@
+pybind11
+pytest 
+hypothesis
+pytest-benchmark
+pytest-xdist
+pytest-randomly
