@@ -1,7 +1,6 @@
 #include "rtree.h"
 #include <iostream>
 #include <vector>
-#include <memory>
 #include <cassert>
 #include <limits>
 #include <algorithm>
@@ -70,7 +69,7 @@ void rtse::Node::push_back(const rtse::Box2& box, int id) {
     mbr = Box2::merge(mbr, box);
 }
 
-void rtse::Node::push_back(const rtse::NodePtr ptr) {
+void rtse::Node::push_back(Node* ptr) {
     boxes.push_back(ptr->mbr);
     children.push_back(ptr);
     mbr = Box2::merge(mbr, ptr->mbr);
@@ -83,11 +82,24 @@ void rtse::Node::update_mbr() {
 }
 
 rtse::RTree::RTree() {
-    root = std::make_shared<Node>();
+    root = new Node;
     root->is_leaf = true;
     root->mbr = Box2();
     M = 8;
     m = 2;
+}
+
+rtse::RTree::~RTree() {
+    deallocate(root);
+}
+
+void rtse::RTree::deallocate(Node* root) {
+    if (!root) return;
+    if (!root->is_leaf) {
+        for (auto child : root->children)
+            deallocate(child);
+    }
+    delete root;
 }
 
 void rtse::RTree::insert(const Box2& box, int id) {
@@ -113,8 +125,11 @@ void rtse::RTree::erase(int id) {
 
     id_to_box.erase(id);
 
-    if (!root->is_leaf && root->size() == 1)
+    if (!root->is_leaf && root->size() == 1) {
+        auto old_root = root;
         root = root->children[0];
+        delete old_root;
+    }
     if (!root->is_leaf && root->size() == 0)
         root->is_leaf = true;
 }
@@ -135,12 +150,12 @@ std::vector<int> rtse::RTree::query_range(const rtse::Box2& query_box) const {
 }
 
 // choose the leaf node for insertion 
-rtse::NodeVec rtse::RTree::choose_leaf(rtse::NodePtr cur_node, const rtse::Box2& box) const {
+rtse::NodeVec rtse::RTree::choose_leaf(Node* cur_node, const rtse::Box2& box) const {
     if (cur_node->is_leaf) return NodeVec(1, cur_node); // base case: leaf node
     assert(!cur_node->children.empty());    // empty node should not exist
 
     // recursive case: non-leaf node
-    NodePtr min_ptr = cur_node->children.front();
+    Node* min_ptr = cur_node->children.front();
     double min_enlargement = min_ptr->mbr.enlarge_area(box); 
     for (auto& child : cur_node->children) {
         double enlarge_area = child->mbr.enlarge_area(box);
@@ -178,8 +193,11 @@ void rtse::RTree::insert_to_node(const rtse::NodeVec& vec, size_t level, const r
         // overflow occurrs
         if (cur_node->boxes.size() > M) {
             auto split_pair = split(cur_node);
-            if (cur_node == root)
+            if (cur_node == root) {
+                auto old_root = root;
                 make_new_root(split_pair);
+                delete old_root;
+            }
             else 
                 adjust(vec, 1, split_pair);
         }
@@ -187,7 +205,7 @@ void rtse::RTree::insert_to_node(const rtse::NodeVec& vec, size_t level, const r
 }
 
 // split overflow leaf node
-std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& node) const {
+std::pair<rtse::Node*, rtse::Node*> rtse::RTree::split(rtse::Node* node) const {
     auto [node_A, node_B] = choose_boxes(node);
     // leaf case: boxes and ids
     if (node->is_leaf) {
@@ -293,11 +311,11 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::split(const rtse::NodePtr& 
 }
 
 // remove the overflow node and add the new nodes
-void rtse::RTree::adjust(const rtse::NodeVec& vec, size_t level, const std::pair<rtse::NodePtr, rtse::NodePtr>& new_nodes) {
+void rtse::RTree::adjust(const rtse::NodeVec& vec, size_t level, const std::pair<rtse::Node*, rtse::Node*>& new_nodes) {
     assert(new_nodes.first != new_nodes.second);    // two nodes should not be the same
     assert(level < vec.size());
 
-    auto node = vec[level];    
+    auto node = vec[level], overflow_node = vec[level-1];    
     // remove the overflow node from its parent's childrean vector
     auto it_child = find(node->children.begin(), node->children.end(), vec[level-1]);
     if (it_child != node->children.end()) node->children.erase(it_child);
@@ -313,13 +331,17 @@ void rtse::RTree::adjust(const rtse::NodeVec& vec, size_t level, const std::pair
             adjust(vec, level+1, split_pair);
         }
         else {
+            auto old_root = root;
             make_new_root(split_pair);
+            delete old_root;
         }
     }
+
+    delete overflow_node; 
 }
 
 // find two farest nodes to the axis with larger separation
-std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::NodePtr& node) const {
+std::pair<rtse::Node*, rtse::Node*> rtse::RTree::choose_boxes(Node* node) const {
     double overall_low, highest_low, lowest_high, overall_high;
     double separation_x, separation_y;
     double denom;
@@ -376,7 +398,7 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::No
 
     node->allocated = std::vector<bool>(node->size(), false);
     node->allocated[idxB] = node->allocated[idxA] = true; 
-    auto ptrA = std::make_shared<Node>(), ptrB = std::make_shared<Node>();
+    auto ptrA = new Node, ptrB = new Node;
     ptrB->is_leaf = ptrA->is_leaf = node->is_leaf;
     if (node->is_leaf) { 
         ptrA->push_back(node->boxes[idxA], node->ids[idxA]);
@@ -390,7 +412,7 @@ std::pair<rtse::NodePtr, rtse::NodePtr> rtse::RTree::choose_boxes(const rtse::No
 }
 
 // resursively find the overlaped node
-void rtse::RTree::find_queried_boxes(const rtse::NodePtr& node, const rtse::Box2& target, std::vector<int>& ids) const {
+void rtse::RTree::find_queried_boxes(Node* node, const rtse::Box2& target, std::vector<int>& ids) const {
     if (node->is_leaf) {
         for (size_t i = 0 ; i < node->size() ; i++) {
             if (target.overlap(node->boxes[i]))
@@ -406,8 +428,8 @@ void rtse::RTree::find_queried_boxes(const rtse::NodePtr& node, const rtse::Box2
     }
 }
 
-void rtse::RTree::make_new_root(const std::pair<rtse::NodePtr, rtse::NodePtr>& split_pair) {
-    auto new_root = std::make_shared<Node>();
+void rtse::RTree::make_new_root(const std::pair<rtse::Node*, rtse::Node*>& split_pair) {
+    auto new_root = new Node;
     new_root->is_leaf = false;
     new_root->push_back(split_pair.first);
     new_root->push_back(split_pair.second);
@@ -415,7 +437,7 @@ void rtse::RTree::make_new_root(const std::pair<rtse::NodePtr, rtse::NodePtr>& s
 }
 
 // search for leaf node 
-void rtse::RTree::choose_leaf(NodeVec& vec, const NodePtr& node, const Box2& box, int id) const {
+void rtse::RTree::choose_leaf(NodeVec& vec, Node* node, const Box2& box, int id) const {
     if (node->is_leaf) {
         bool found = false;
         for (size_t i = 0 ; i < node->size() ; i++)
@@ -469,6 +491,7 @@ rtse::Box2 rtse::RTree::remove_node(const NodeVec& vec, size_t level, int id) {
         if (vec[level-1]->boxes.empty()) {
             node->children.erase(node->children.begin() + child_idx);
             node->boxes.erase(node->boxes.begin() + child_idx);
+            delete vec[level-1];
         }
         else {
             node->boxes[child_idx] = child_mbr;

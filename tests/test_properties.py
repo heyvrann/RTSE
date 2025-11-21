@@ -23,8 +23,8 @@ def pairs_unique_ids(draw, min_size=0, max_size=60):
 def nested_query_boxes(draw):
     xlo = draw(finite_float); xhi = draw(finite_float)
     ylo = draw(finite_float); yhi = draw(finite_float)
-    xmin, xmax = (xlo, xhi) if xlo <= xhi else (xhi, xlo)
-    ymin, ymax = (ylo, yhi) if ylo <= yhi else (yhi, ylo)
+    xmin, xmax = min(xlo, xhi), max(xlo, xhi)
+    ymin, ymax = min(ylo, yhi), max(ylo, yhi)
     x1 = draw(st.floats(min_value=xmin, max_value=xmax, allow_nan=False, allow_infinity=False))
     x2 = draw(st.floats(min_value=xmin, max_value=xmax, allow_nan=False, allow_infinity=False))
     y1 = draw(st.floats(min_value=ymin, max_value=ymax, allow_nan=False, allow_infinity=False))

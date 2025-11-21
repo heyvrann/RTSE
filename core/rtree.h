@@ -42,41 +42,47 @@ struct Node {
     Box2 mbr;
     std::vector<Box2> boxes;
     std::vector<int> ids;
-    std::vector<std::shared_ptr<Node>> children;
+    std::vector<Node*> children;
     std::vector<bool> allocated;
     std::pair<const Box2&, int> entry(size_t i) const;
     size_t size() const;
     void push_back(const Box2& box, int id);
-    void push_back(const std::shared_ptr<Node> ptr);
+    void push_back(Node* ptr);
     void update_mbr();
 };
 
-using NodePtr = std::shared_ptr<Node>;
-using NodeVec = std::vector<NodePtr>;
+using NodeVec = std::vector<Node*>;
 
 class RTree {
 public:
     RTree();
+    ~RTree();
+    // RTree(const RTree&) = delete;
+    // RTree& operator=(const RTree&) = delete;
+    // RTree(RTree&&) = delete;
+    // RTree& operator=(RTree&&) = delete;
     void insert(const Box2& box, int id);
     void erase(int id);
     void update(int id, const Box2& new_box);
     std::vector<int> query_range(const Box2& query_box) const;
 
 private:
-    NodePtr root;
+    Node* root;
     size_t M, m;
     std::unordered_map<int, Box2> id_to_box;
+    // private function for destructor
+    void deallocate(Node* root);
     // private function for insert()
-    NodeVec choose_leaf(NodePtr cur_node, const Box2& box) const;
+    NodeVec choose_leaf(Node* cur_node, const Box2& box) const;
     void insert_to_node(const NodeVec& vec, size_t level, const Box2& box, int id);
-    std::pair<NodePtr, NodePtr> split(const NodePtr& node) const;
-    void adjust(const NodeVec& vec, size_t level, const std::pair<NodePtr, NodePtr>& split_pair);
-    std::pair<NodePtr, NodePtr> choose_boxes(const NodePtr& node) const;
-    void make_new_root(const std::pair<NodePtr, NodePtr>& split_pair);
+    std::pair<Node*, Node*> split(Node* node) const;
+    void adjust(const NodeVec& vec, size_t level, const std::pair<Node*, Node*>& split_pair);
+    std::pair<Node*, Node*> choose_boxes(Node* node) const;
+    void make_new_root(const std::pair<Node*, Node*>& split_pair);
     // private function for query_range()
-    void find_queried_boxes(const NodePtr& node, const Box2& target, std::vector<int>& ids) const;
+    void find_queried_boxes(Node* node, const Box2& target, std::vector<int>& ids) const;
     // private function for erase()
-    void choose_leaf(NodeVec& vec, const NodePtr& node, const Box2& box, int id) const;
+    void choose_leaf(NodeVec& vec, Node* node, const Box2& box, int id) const;
     Box2 remove_node(const NodeVec& vec, size_t level, int id);
 };
 
