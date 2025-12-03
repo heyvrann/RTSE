@@ -43,3 +43,4 @@ benchmark/results/
 
 # ===== Documentation builds =====
 docs/_build/
+docs/build/

@@ -1,16 +1,18 @@
 #include "../core/rtree.h"
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <random>
 #include <set>
-#include <algorithm>
 
 using namespace rtse;
 
-static std::set<int> as_set(const std::vector<int>& vec) {
+static std::set<int> as_set(const std::vector<int> &vec)
+{
     return {vec.begin(), vec.end()};
 }
 
-TEST(RTreeBasic, InsertAndQuery) {
+TEST(RTreeBasic, InsertAndQuery)
+{
     RTree tree;
     tree.insert(Box2(Point2(0, 0), Point2(1, 1)), 1);
     tree.insert(Box2(Point2(2, 2), Point2(3, 3)), 2);
@@ -24,7 +26,8 @@ TEST(RTreeBasic, InsertAndQuery) {
     EXPECT_TRUE(std::find(result.begin(), result.end(), 3) != result.end());
 }
 
-TEST(RTreeOverlap, TouchBoundary) {
+TEST(RTreeOverlap, TouchBoundary)
+{
     RTree tree;
     tree.insert(Box2(Point2(0, 0), Point2(1, 1)), 10);
     auto ids = tree.query_range(Box2(Point2(1, 1), Point2(2, 2)));
@@ -32,26 +35,30 @@ TEST(RTreeOverlap, TouchBoundary) {
     EXPECT_EQ(ids[0], 10);
 }
 
-TEST(RTreeOverlap, JustOutsideBoundary) {
+TEST(RTreeOverlap, JustOutsideBoundary)
+{
     RTree tree;
     tree.insert(Box2(Point2(0, 0), Point2(1, 1)), 9);
-    auto ids = tree.query_range(Box2(Point2(1+1e-9, 1+1e-9), Point2(2, 2)));
+    auto ids = tree.query_range(Box2(Point2(1 + 1e-9, 1 + 1e-9), Point2(2, 2)));
     EXPECT_TRUE(ids.empty());
 }
 
-TEST(RTreeSplit, OverflowCreatesBalancedTree) {
+TEST(RTreeSplit, OverflowCreatesBalancedTree)
+{
     RTree tree;
-    for (int i = 0 ; i < 20 ; i++)
-        tree.insert(Box2(Point2(i, i), Point2(i+0.5, i+0.5)), i);
+    for (int i = 0; i < 20; i++)
+        tree.insert(Box2(Point2(i, i), Point2(i + 0.5, i + 0.5)), i);
     auto result = tree.query_range(Box2(Point2(0, 0), Point2(19, 19)));
     EXPECT_EQ(result.size(), 20);
 }
 
-TEST(RTreeCorrectness, RandomAgainBruteForce) {
+TEST(RTreeCorrectness, RandomAgainBruteForce)
+{
     RTree tree;
     std::vector<std::pair<Box2, int>> data;
-    for (int i = 0 ; i < 100 ; i++) {
-        double x1= i, y1 = i, x2 = i+1, y2 = i+1;
+    for (int i = 0; i < 100; i++)
+    {
+        double x1 = i, y1 = i, x2 = i + 1, y2 = i + 1;
         Box2 b(Point2(x1, y1), Point2(x2, y2));
         data.push_back({b, i});
         tree.insert(b, i);
@@ -61,7 +68,7 @@ TEST(RTreeCorrectness, RandomAgainBruteForce) {
     auto ids_tree = tree.query_range(query);
 
     std::vector<int> ids_brute;
-    for (auto& [b, id] : data) 
+    for (auto &[b, id] : data)
         if (query.overlap(b))
             ids_brute.push_back(id);
 
@@ -70,38 +77,44 @@ TEST(RTreeCorrectness, RandomAgainBruteForce) {
     EXPECT_EQ(ids_tree, ids_brute);
 }
 
-TEST(RTreeUpdate, MoveAcrossLevels) {
+TEST(RTreeUpdate, MoveAcrossLevels)
+{
     RTree tree;
     for (int i = 0; i < 64; ++i)
-        tree.insert(Box2(Point2(i,i), Point2(i+1,i+1)), i);
+        tree.insert(Box2(Point2(i, i), Point2(i + 1, i + 1)), i);
 
-    auto ids1 = tree.query_range(Box2(Point2(0,0), Point2(20,20)));
+    auto ids1 = tree.query_range(Box2(Point2(0, 0), Point2(20, 20)));
     EXPECT_TRUE(std::find(ids1.begin(), ids1.end(), 10) != ids1.end());
 
-    tree.update(10, Box2(Point2(100,100), Point2(101,101)));
+    tree.update(10, Box2(Point2(100, 100), Point2(101, 101)));
 
-    auto ids2 = tree.query_range(Box2(Point2(0,0), Point2(20,20)));
+    auto ids2 = tree.query_range(Box2(Point2(0, 0), Point2(20, 20)));
     EXPECT_TRUE(std::find(ids2.begin(), ids2.end(), 10) == ids2.end());
 
-    auto ids3 = tree.query_range(Box2(Point2(99,99), Point2(102,102)));
+    auto ids3 = tree.query_range(Box2(Point2(99, 99), Point2(102, 102)));
     EXPECT_TRUE(std::find(ids3.begin(), ids3.end(), 10) != ids3.end());
 }
 
-TEST(RTreeMixed, RandomVsOracle) {
+TEST(RTreeMixed, RandomVsOracle)
+{
     std::mt19937 rng(314551132);
     std::uniform_real_distribution<double> U(0.0, 100.0);
 
     RTree tree;
     std::vector<std::pair<Box2, int>> oracle;
 
-    auto rand_box = [&](){
-        double x1=U(rng), y1=U(rng), x2=U(rng), y2=U(rng);
-        if (x1 == x2) x2 += 1e-3;
-        if (y1 == y2) y2 += 1e-3;
+    auto rand_box = [&]()
+    {
+        double x1 = U(rng), y1 = U(rng), x2 = U(rng), y2 = U(rng);
+        if (x1 == x2)
+            x2 += 1e-3;
+        if (y1 == y2)
+            y2 += 1e-3;
         return Box2(Point2(x1, y1), Point2(x2, y2));
     };
 
-    for (size_t i = 0 ; i < 100 ; i++) {
+    for (size_t i = 0; i < 100; i++)
+    {
         auto box = rand_box();
         oracle.push_back({box, i});
         tree.insert(box, i);
@@ -109,22 +122,26 @@ TEST(RTreeMixed, RandomVsOracle) {
 
     size_t max_ids = 99;
 
-    for (size_t step = 0 ; step < 300 ; step++) {
+    for (size_t step = 0; step < 300; step++)
+    {
         int op = rng() % 3;
-        if (op == 0) {
-            int id = (int) (++max_ids);
+        if (op == 0)
+        {
+            int id = (int)(++max_ids);
             auto box = rand_box();
             oracle.push_back({box, id});
             tree.insert(box, id);
         }
-        else if (op == 1 && !oracle.empty()) {
+        else if (op == 1 && !oracle.empty())
+        {
             int idx = rng() % oracle.size();
             int id = oracle[idx].second;
             auto box = rand_box();
             oracle[idx].first = box;
             tree.update(id, box);
         }
-        else if (op == 2 && !oracle.empty()) {
+        else if (op == 2 && !oracle.empty())
+        {
             int idx = rng() % oracle.size();
             int id = oracle[idx].second;
             std::swap(oracle[idx], oracle.back());
@@ -134,7 +151,8 @@ TEST(RTreeMixed, RandomVsOracle) {
 
         auto rand_range = rand_box();
         std::set<int> ids;
-        for (auto& kv: oracle) {
+        for (auto &kv : oracle)
+        {
             if (rand_range.overlap(kv.first))
                 ids.insert(kv.second);
         }
@@ -142,7 +160,8 @@ TEST(RTreeMixed, RandomVsOracle) {
     }
 }
 
-TEST(RTreeDuplicateBoxes, DifferentIdsBothReturned) {
+TEST(RTreeDuplicateBoxes, DifferentIdsBothReturned)
+{
     RTree tree;
     Box2 box(Point2(1, 1), Point2(2, 2));
     tree.insert(box, 1);
@@ -150,10 +169,11 @@ TEST(RTreeDuplicateBoxes, DifferentIdsBothReturned) {
     auto s = as_set(tree.query_range(Box2(Point2(0, 0), Point2(3, 3))));
     EXPECT_EQ(s.size(), 2);
     EXPECT_TRUE(s.count(1));
-    EXPECT_TRUE(s.count(2));    
+    EXPECT_TRUE(s.count(2));
 }
 
-TEST(RTreeDegenerate, ZeroAreaPointOverlapBoundary) {
+TEST(RTreeDegenerate, ZeroAreaPointOverlapBoundary)
+{
     RTree tree;
     Box2 p = Box2::from_point(Point2(1, 1));
     tree.insert(p, 7);
@@ -162,7 +182,8 @@ TEST(RTreeDegenerate, ZeroAreaPointOverlapBoundary) {
     EXPECT_EQ(vec[0], 7);
 }
 
-TEST(RTreeUpdate, NoOpKeepState) {
+TEST(RTreeUpdate, NoOpKeepState)
+{
     RTree tree;
     Box2 box(Point2(0, 0), Point2(1, 1));
     tree.insert(box, 10);
