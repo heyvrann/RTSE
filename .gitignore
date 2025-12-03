@@ -28,6 +28,7 @@ __pycache__/
 .hypothesis/
 .pytest_cache/
 .benchmark/
+.benchmarks/
 benchmark/results/
 
 # ===== macOS / system files =====
