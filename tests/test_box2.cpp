@@ -1,7 +1,8 @@
-#include <cassert>
 #include "../core/rtree.h"
+#include <cassert>
 
-int main() {
+int main()
+{
     rtse::Box2 box1(rtse::Point2(0, 0), rtse::Point2(1, 1));
     rtse::Box2 box2(rtse::Point2(0.5, 0.5), rtse::Point2(2, 2));
     assert(box1.overlap(box2));
