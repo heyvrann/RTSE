@@ -27,7 +27,7 @@ jobs:
               run:  |
                 PYBIND11_DIR=$(python3 -m pybind11 --cmakedir)
                 cmake -Wno-dev -B build \
-                  -DCMAKE_BUILD_TYPE=Debug  \
+                  -DCMAKE_BUILD_TYPE=Release  \
                   -Dpybind11_DIR=$PYBIND11_DIR  \
                   -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic -Werror"
 
@@ -40,15 +40,14 @@ jobs:
               
             - name: Run pytest
               run: |
-                export PYTHONPATH="$PYTHONPATH:$(pwd)/build"
                 export HYPOTHESIS_PROFILE=ci
                 export PYTHONWARNINGS=error
                 pytest -v -W error tests
             
-            - name: Run minimal benchmark (smoke)
+            - name: Run benchmark
               run: |
-                PYTHONPATH=$PYTHONPATH:$(pwd)/build \
-                pytest --benchmark-only benchmark/test_bench.py -k build_time \
+                pytest --benchmark-only -m ci \
+                       benchmark/test_bench_ci.py \
                        --benchmark-json=benchmark-results.json
             
             - name: Upload benchmark artifact
