@@ -495,7 +495,7 @@ rtse::RTree::choose_boxes(Node *node) const
         separation_y = std::max(0.0, (highest_low - lowest_high) / denom);
 
     // choose the axis with larger separation
-    size_t idxA, idxB;
+    size_t idxA = 0, idxB = 0;
     if (eq(separation_x, separation_y) && eq(separation_x, 0))
     {
         idxA = 0;
@@ -621,7 +621,7 @@ rtse::Box2 rtse::RTree::remove_node(const NodeVec &vec, size_t level, int id)
     else
     {
         auto child_mbr = remove_node(vec, level - 1, id);
-        size_t child_idx;
+        size_t child_idx = 0;
         // bool found = false;
         for (size_t i = 0; i < node->size(); i++)
         {
