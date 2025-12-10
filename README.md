@@ -7,7 +7,7 @@ property-based tests, and performance benchmarks.
 Test
 =========
 
-* script/run_test.sh
+**script/run_test.sh**
 
 This script:
 
@@ -18,9 +18,7 @@ This script:
 Benchmark
 ==========
 
-* script/run_bench.sh
-
-Notice that running baseline should be configured with ''CMAKE_BUILD_TYPE=Release''. 
+**script/run_bench.sh**
 
 This script:
 
