@@ -12,9 +12,9 @@ double rtse::Point2::y() const { return m_y; }
 rtse::Box2::Box2() : m_is_empty(true) {}
 
 rtse::Box2::Box2(const rtse::Point2 &p1, const rtse::Point2 &p2)
-    : m_min(Point2(std::min(p1.x(), p2.x()), std::min(p1.y(), p2.y()))),
-      m_max(Point2(std::max(p1.x(), p2.x()), std::max(p1.y(), p2.y()))),
-      m_is_empty(false)
+    : m_is_empty(false),
+      m_min(Point2(std::min(p1.x(), p2.x()), std::min(p1.y(), p2.y()))),
+      m_max(Point2(std::max(p1.x(), p2.x()), std::max(p1.y(), p2.y())))
 {
 }
 
@@ -495,7 +495,7 @@ rtse::RTree::choose_boxes(Node *node) const
         separation_y = std::max(0.0, (highest_low - lowest_high) / denom);
 
     // choose the axis with larger separation
-    size_t idxA, idxB;
+    size_t idxA = 0, idxB = 0;
     if (eq(separation_x, separation_y) && eq(separation_x, 0))
     {
         idxA = 0;
@@ -603,36 +603,36 @@ rtse::Box2 rtse::RTree::remove_node(const NodeVec &vec, size_t level, int id)
     auto node = vec[level];
     if (level == 0)
     {
-        size_t idx;
-        bool found = false;
+        size_t idx = 0;
+        // bool found = false;
         for (size_t i = 0; i < node->size(); i++)
         {
             if (id == node->ids[i])
             {
                 idx = i;
-                found = true;
+                // found = true;
                 break;
             }
         }
-        assert(found == true); // matched id should be found
+        // assert(found == true); // matched id should be found
         node->ids.erase(node->ids.begin() + idx);
         node->boxes.erase(node->boxes.begin() + idx);
     }
     else
     {
         auto child_mbr = remove_node(vec, level - 1, id);
-        size_t child_idx;
-        bool found = false;
+        size_t child_idx = 0;
+        // bool found = false;
         for (size_t i = 0; i < node->size(); i++)
         {
             if (vec[level - 1] == node->children[i])
             {
                 child_idx = i;
-                found = true;
+                // found = true;
                 break;
             }
         }
-        assert(found == true); // child_idx should be found
+        // assert(found == true); // child_idx should be found
         if (vec[level - 1]->boxes.empty())
         {
             node->children.erase(node->children.begin() + child_idx);

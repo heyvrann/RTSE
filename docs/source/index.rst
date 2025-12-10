@@ -6,17 +6,19 @@
 RTSE documentation
 ==================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+**Repository URL**: https://github.com/heyvrann/RTSE
 
+This project builds a spatial search engine based on R-trees. 
+It indexes points, segments, and boxes in 2D, 
+supports dynamic insert/remove/update with C++ core 
+and Python interface.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   basic_info
    problem
    users
    architecture
    api
+   performance

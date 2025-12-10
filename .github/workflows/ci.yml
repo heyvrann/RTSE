@@ -5,7 +5,7 @@ on:
     pull_request:
 
 jobs:
-    build:
+    ci:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -26,7 +26,10 @@ jobs:
             - name: Configure (CMake)
               run:  |
                 PYBIND11_DIR=$(python3 -m pybind11 --cmakedir)
-                cmake -Wno-dev -B build -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR=$PYBIND11_DIR
+                cmake -Wno-dev -B build \
+                  -DCMAKE_BUILD_TYPE=Release  \
+                  -Dpybind11_DIR=$PYBIND11_DIR  \
+                  -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic -Werror"
 
             - name: Build (CMake)
               run: cmake --build build --parallel
@@ -37,13 +40,14 @@ jobs:
               
             - name: Run pytest
               run: |
-                export PYTHONPATH=$PYTHONPATH:$(pwd)/build
-                HYPOTHESIS_PROFILE=ci pytest -v tests
+                export HYPOTHESIS_PROFILE=ci
+                export PYTHONWARNINGS=error
+                pytest -v -W error tests
             
-            - name: Run minimal benchmark (smoke)
+            - name: Run benchmark
               run: |
-                PYTHONPATH=$PYTHONPATH:$(pwd)/build \
-                pytest --benchmark-only benchmark/test_bench.py -k build_time \
+                pytest --benchmark-only -m ci \
+                       benchmark/test_bench_ci.py \
                        --benchmark-json=benchmark-results.json
             
             - name: Upload benchmark artifact
