@@ -60,7 +60,6 @@ def test_build_time(benchmark, N):
     "N, Q, win_frac",
     [
         (10_000, 1_000, 0.01),
-        (100_000, 1_000, 0.01),
         (100_000, 1_000, 0.05),
     ],
 )
@@ -82,7 +81,7 @@ def test_query_latency_and_qps(benchmark, N, Q, win_frac):
     median_s = st.median
     qps = 1.0 / mean_s if mean_s > 0 else float("inf")
     print(
-        f"\n[summary] N={N} Q={Q} win={win_frac*100:.0f}% "
+        f"\n[R-tree] N={N} Q={Q} win={win_frac*100:.0f}% "
         f"mean={mean_s*1e3:.3f} ms  median={median_s*1e3:.3f} ms  QPS≈{qps:.1f}"
     )
 
@@ -91,7 +90,6 @@ def test_query_latency_and_qps(benchmark, N, Q, win_frac):
     "N, Q, win_frac",
     [
         (10_000, 1_000, 0.01),
-        (100_000, 1_000, 0.01),
         (100_000, 1_000, 0.05),
     ],
 )
@@ -112,25 +110,76 @@ def test_linear_baseline_latency_and_qps(benchmark, N, Q, win_frac):
     median_s = st.median
     qps = 1.0 / mean_s if mean_s > 0 else float("inf")
     print(
-        f"\n[linear baseline] N={N} Q={Q} win={win_frac*100:.0f}% "
+        f"\n[linear] N={N} Q={Q} win={win_frac*100:.0f}% "
         f"mean={mean_s*1e3:.3f} ms  median={median_s*1e3:.3f} ms  QPS≈{qps:.1f}"
     )
 
 
+@pytest.mark.parametrize("N", [5_000, 10_000, 20_000, 40_000, 80_000])
+def test_query_fixed_win_1pct(benchmark, N):
+    Q = 1_000
+    win_frac = 0.01
+
+    data, queries = gen_data_and_queries(N, Q, win_frac)
+    tree = build_index(data)
+    it = cycle(queries)
+
+    for _ in range(200):
+        _ = tree.query_range(next(it))
+
+    def run_one():
+        return len(tree.query_range(next(it)))
+
+    benchmark(run_one)
+    st = benchmark.stats.stats
+
+    mean_s = st.mean
+    median_s = st.median
+    qps = 1.0 / mean_s if mean_s > 0 else float("inf")
+    print(
+        f"\n[fixed-win R-tree] N={N} Q={Q} win=1% "
+        f"mean={mean_s*1e3:.3f} ms  median={median_s*1e3:.3f} ms  QPS≈{qps:.1f}"
+    )
+
+@pytest.mark.parametrize("N", [5_000, 10_000, 20_000, 40_000, 80_000])
+def test_linear_fixed_win_1pct(benchmark, N):
+    Q = 1_000
+    win_frac = 0.01
+
+    data, queries = gen_data_and_queries(N, Q, win_frac)
+    it = cycle(queries)
+
+    for _ in range(200):
+        _ = linear_scan_ids(data, next(it))
+
+    def run_one():
+        return len(linear_scan_ids(data, next(it)))
+
+    benchmark(run_one)
+    st = benchmark.stats.stats
+
+    mean_s = st.mean
+    median_s = st.median
+    qps = 1.0 / mean_s if mean_s > 0 else float("inf")
+    print(
+        f"\n[fixed-win linear] N={N} Q={Q} win=1% "
+        f"mean={mean_s*1e3:.3f} ms  median={median_s*1e3:.3f} ms  QPS≈{qps:.1f}"
+    )
+
 @pytest.mark.parametrize(
-    "N_acitive, steps",
+    "N_active, steps",
     [
         (1_000, 5_000),
         (10_000, 10_000),
         (100_000, 10_000),
     ],
 )
-def test_mixed_workload_scaling(benchmark, N_acitive, steps):
+def test_mixed_workload_scaling(benchmark, N_active, steps):
     rng = random.Random(314551132)
-    data = [(box, id) for id, box in enumerate(gen_uniform_boxes(N_acitive, rng))]
+    data = [(box, id) for id, box in enumerate(gen_uniform_boxes(N_active, rng))]
     tree = build_index(data)
-    active_ids = list(range(N_acitive))
-    max_id = N_acitive - 1
+    active_ids = list(range(N_active))
+    max_id = N_active - 1
 
     def do_ops():
         nonlocal max_id
@@ -166,6 +215,6 @@ def test_mixed_workload_scaling(benchmark, N_acitive, steps):
     median_s = st.median
     ops = steps / mean_s if mean_s > 0 else float("inf")
     print(
-        f"\n[mixed] N={N_acitive} steps={steps} "
+        f"\n[mixed] N={N_active} steps={steps} "
         f"mean={mean_s*1e3:.3f} ms  median={median_s*1e3:.3f} ms  OPS≈{ops:.1f}"
     )
