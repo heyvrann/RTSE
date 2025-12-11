@@ -21,6 +21,7 @@ add_library(rtse_core STATIC
     core/rtree.cpp
 )
 target_include_directories(rtse_core PUBLIC ${PROJECT_SOURCE_DIR}/core)
+set_target_properties(rtse_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 pybind11_add_module(rtse binding/pybind.cpp)
 target_link_libraries(rtse PRIVATE rtse_core)
