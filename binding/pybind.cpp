@@ -30,13 +30,7 @@ PYBIND11_MODULE(rtse, m)
                                py::return_value_policy::reference_internal)
         .def_property_readonly("max", &rtse::Box2::max,
                                py::return_value_policy::reference_internal)
-        .def_property_readonly("is_empty", &rtse::Box2::is_empty)
-        .def_static("from_point", &rtse::Box2::from_point, py::arg("p"))
-        .def("area", &rtse::Box2::area)
         .def("overlap", &rtse::Box2::overlap, py::arg("other"))
-        .def_static("merge", &rtse::Box2::merge, py::arg("box1"),
-                    py::arg("box2"))
-        .def("enlarge_area", &rtse::Box2::enlarge_area, py::arg("other"))
         .def(py::self == py::self)
         .def(py::self != py::self)
         .def("__repr__",
