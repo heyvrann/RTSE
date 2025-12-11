@@ -25,7 +25,7 @@ PYBIND11_MODULE(rtse, m)
     py::class_<rtse::Box2>(m, "Box2", "Axis-aligned bounding box [min, max].")
         .def(py::init<>())
         .def(py::init<const rtse::Point2 &, const rtse::Point2 &>(),
-             py::arg("pmin"), py::arg("pmax"))
+             py::arg("min"), py::arg("max"))
         .def_property_readonly("min", &rtse::Box2::min,
                                py::return_value_policy::reference_internal)
         .def_property_readonly("max", &rtse::Box2::max,
