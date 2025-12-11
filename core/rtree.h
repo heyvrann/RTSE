@@ -64,10 +64,10 @@ class RTree
   public:
     RTree();
     ~RTree();
-    // RTree(const RTree&) = delete;
-    // RTree& operator=(const RTree&) = delete;
-    // RTree(RTree&&) = delete;
-    // RTree& operator=(RTree&&) = delete;
+    RTree(const RTree&) = delete;
+    RTree& operator=(const RTree&) = delete;
+    RTree(RTree&&) = delete;
+    RTree& operator=(RTree&&) = delete;
     void insert(const Box2 &box, int id);
     void erase(int id);
     void update(int id, const Box2 &new_box);
